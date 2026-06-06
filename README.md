@@ -3,7 +3,7 @@
 ## 概要
 - opera-sim(PhysX or AGX版)に実装されている,ドラグショベル(ZX200)に対して, 掘削から放土の一連動作を行うサンプルコードである.
 
-
+Uploading state_machine_PhysX.mp4…
 
 ## ビルド手順
 $ cd ~/ros_ws/src
