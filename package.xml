@@ -3,9 +3,9 @@
 <package format="3">
   <name>zx200_autonomy</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="satoryoya1012711@gmail.com">ryoyasato</maintainer>
-  <license>TODO: License declaration</license>
+  <description>Sample Code for Opera-sim(PhysX)</description>
+  <maintainer email="satoryoya1012711@gmail.com">Ryoya SATO</maintainer>
+  <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
   <depend>com3_msgs</depend>

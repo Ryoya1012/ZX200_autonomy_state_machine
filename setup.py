@@ -13,10 +13,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='ryoyasato',
+    maintainer='Ryoya SATO',
     maintainer_email='satoryoya1012711@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Sample Program for Opera-sim(PhysX)',
+    license='Apach-2.0-License',
     extras_require={
         'test': [
             'pytest',
