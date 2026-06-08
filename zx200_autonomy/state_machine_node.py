@@ -19,10 +19,12 @@ class State(Enum):
     DIG = 2
     DRAG = 3
     LIFT = 4
-    SWING_TO_RELEASE = 5
-    RELEASE = 6
-    RETURN_1 = 7
-    RETURN_2 = 8
+    SWING_TO_RELEASE_1 = 5
+    SWING_TO_RELEASE_2 = 6
+    RELEASE_1 = 7
+    RELEASE_2 = 8
+    RETURN_1 = 9
+    RETURN_2 = 10
 
 class ZX200StateMachine(Node):
     def __init__(self):
@@ -30,7 +32,7 @@ class ZX200StateMachine(Node):
         # 送信：Unityへの目標角度(rad)指令
         self.pub_cmd = self.create_publisher( JointCmd, '/zx200/front_cmd', 10)
         # 受信：現在の関節角度フィードバック 
-        self.sub_state = self.create_subscription( JointState, '/zx200/joint_state', self.joint_state_callback, 10)
+        self.sub_state = self.create_subscription( JointState, '/zx200/joint_states', self.joint_state_callback, 10)
 
         # 変数の初期化
         self.current_state = State.IDLE
@@ -38,7 +40,7 @@ class ZX200StateMachine(Node):
         self.current_positions = { name: 0.0 for name in self.joint_names}
 
         # 関節角度の許容差
-        self.tolerance = 0.05
+        self.tolerance = 0.1
 
         # 各状態の目標角度
         # [ swing, boom, arm, bucket]
@@ -48,15 +50,25 @@ class ZX200StateMachine(Node):
                     State.DIG:                  [0.000, 0.140, 0.874, 0.097],
                     State.DRAG:                 [0.000, 0.140, 1.43, 1.028],
                     State.LIFT:                 [0.000, -0.837, 1.846, 2.168],
-                    State.SWING_TO_RELEASE:     [3.136, -0.837, 1.848, 2.168],
-                    State.RELEASE:              [3.136, -0.687, 0.996, -0.438],
+                    State.SWING_TO_RELEASE_1:   [1.500, -0.837, 1.846, 2.168],
+                    State.SWING_TO_RELEASE_2:   [3.136, -0.837, 1.848, 2.168],
+                    State.RELEASE_1:            [3.136, -0.511, 1.235, 2.366],
+                    State.RELEASE_2:            [3.136, -0.511, 1.234, -0.5],
                     State.RETURN_1:             [3.136, -1.221, 2.53, 2.373],
                     State.RETURN_2:             [0.000, -1.221, 2.53, 2.373]
                 }
+        
+        self.cmd_positions = list( self.target_angles[State.IDLE])
+        self.start_positions = list( self.target_angles[State.IDLE])
+        self.state_start_time = 0.0
+        self.move_duration = 0.1
+        self.max_speeds = [ 0.001, 0.001, 0.001, 0.001]
+
+        self.dt = 0.001
 
         self.timer = self.create_timer( 0.1, self.timer_callback)
 
-        self.wait_time = 2.5
+        self.wait_time = 1.0
 
         self.reached_time = None
 
@@ -71,7 +83,19 @@ class ZX200StateMachine(Node):
                 if name in self.current_positions:
                     self.current_positions[name] = msg.position[i]
     def transition_to( self, next_state):
+            self.start_positions = list( self.cmd_positions)
             self.current_state = next_state
+            target = self.target_angles[next_state]
+            durations = []
+
+            for i in range( len( self.joint_names)):
+                dist = abs( target[i] - self.start_positions[i])
+                speed = self.max_speeds[i] if self.max_speeds[i] > 0 else 0.01
+                durations.append( dist/speed)
+            self.move_duration = max( durations)
+            if self.move_duration < 0.01:
+                self.move_duration = 0.01
+            self.state_start_time = self.get_clock().now().nanoseconds /1e9
             self.get_logger().info(f"Transitioned to : {self.current_state.name}")
     def is_target_reached( self):
         target = self.target_angles[ self.current_state]
@@ -84,6 +108,28 @@ class ZX200StateMachine(Node):
         return True
 
     def timer_callback( self):
+        target = self.target_angles[self.current_state]
+        current_time = self.get_clock().now().nanoseconds / 1e9
+
+        if self.current_state == State.IDLE and not self.is_running:
+            pass
+        else:
+            elapsed = current_time - self.state_start_time
+            progress = elapsed / self.move_duration
+
+            if progress >= 1.0:
+                self.cmd_positions = list(target)
+            else:
+                a = 0.5
+                sig = 1.0 / (1.0*math.exp(-a*(progress-0.5)))
+                sig_0 = 1.0 / (1.0+math.exp(-a*(0.0-0.5)))
+                sig_1 = 1.0 / (1.0+math.exp(-a*(1.0-0.5)))
+
+                s = (sig -sig_0) / (sig_1-sig_0)
+
+                for i in range( len(self.joint_names)):
+                    self.cmd_positions[i] = self.start_positions[i] + (target[i]-self.start_positions[i])*s
+
         cmd_msg = JointCmd()
         cmd_msg.joint_name = self.joint_names
         cmd_msg.position = self.target_angles[ self.current_state]
@@ -92,7 +138,6 @@ class ZX200StateMachine(Node):
         if self.is_target_reached():
             if self.current_state == State.IDLE and not self.is_running:
                 return
-            current_time = self.get_clock().now().nanoseconds /1e9
             
             if self.reached_time is None:
                 self.reached_time = current_time
@@ -106,16 +151,20 @@ class ZX200StateMachine(Node):
                         self.transition_to(State.REACH)
 
                 elif self.current_state == State.REACH:
-                    self.transition_to(State.DIG)
+                     self.transition_to(State.DIG)
                 elif self.current_state == State.DIG:
-                    self.transition_to(State.DRAG)
+                     self.transition_to(State.DRAG)
                 elif self.current_state == State.DRAG:
-                    self.transition_to(State.LIFT)
+                     self.transition_to(State.LIFT)
                 elif self.current_state == State.LIFT:
-                    self.transition_to(State.SWING_TO_RELEASE)
-                elif self.current_state == State.SWING_TO_RELEASE:
-                    self.transition_to(State.RELEASE)
-                elif self.current_state == State.RELEASE:
+                     self.transition_to(State.SWING_TO_RELEASE_1)
+                elif self.current_state == State.SWING_TO_RELEASE_1:
+                     self.transition_to(State.SWING_TO_RELEASE_2)
+                elif self.current_state == State.SWING_TO_RELEASE_2:
+                     self.transition_to( State.RELEASE_1)
+                elif self.current_state == State.RELEASE_1:
+                     self.transition_to( State.RELEASE_2)
+                elif self.current_state == State.RELEASE_2:
                      self.transition_to( State.RETURN_1)
                 elif self.current_state == State.RETURN_1:
                      self.transition_to( State.RETURN_2)
