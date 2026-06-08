@@ -4,7 +4,8 @@
 - opera-sim(PhysX or AGX版)に実装されている,ドラグショベル(ZX200)に対して, 掘削から放土の一連動作を行うサンプルコードである.
 
 https://github.com/user-attachments/assets/9f23cc2d-f3f2-4431-a181-689af55a93ab
-*Envitonment 0f Opera-sim(AGX)
+
+*Envitonment 0f Opera-sim(AGX)*
 
 ## ビルド手順
 ```bash
