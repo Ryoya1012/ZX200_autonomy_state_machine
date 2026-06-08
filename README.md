@@ -1,7 +1,7 @@
 # ZX200 Autonomy State Machine
 
 ## 概要
-- opera-sim(PhysX or AGX版)に実装されている,ドラグショベル(ZX200)に対して, 掘削から放土の一連動作を行うサンプルコードである.
+- opera-sim(AGX版)に実装されている,ドラグショベル(ZX200)に対して, 掘削から放土の一連動作を行うサンプルコードである.
 
 https://github.com/user-attachments/assets/9f23cc2d-f3f2-4431-a181-689af55a93ab
 
@@ -15,8 +15,3 @@ colcon build --packages-select zx200_autonomy
 source install/setup.bash
 ros2 run zx200_autonomy state_machine_node
 ```
-
-## ハードウェアシステム
-
-
-
