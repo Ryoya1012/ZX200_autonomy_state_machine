@@ -6,6 +6,7 @@
 
 import rclpy 
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from sensor_msgs.msg import JointState
 from com3_msgs.msg import JointCmd
 from enum import Enum
@@ -26,7 +27,7 @@ class State(Enum):
 
 class ZX200StateMachine(Node):
     def __init__(self):
-        super().__init__('state_machine_node')
+        super().__init__('state_machine_node', parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)])
         # 送信：Unityへの目標角度(rad)指令
         self.pub_cmd = self.create_publisher( JointCmd, '/zx200/front_cmd', 10)
         # 受信：現在の関節角度フィードバック 
