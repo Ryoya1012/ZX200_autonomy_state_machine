@@ -5,12 +5,14 @@
 
 https://github.com/user-attachments/assets/9f23cc2d-f3f2-4431-a181-689af55a93ab
 
-*Envitonment 0f Opera-sim(AGX)*
+*Environment 0f Opera-sim(AGX)*
 
 ## ビルド手順
 ```bash
 cd ~/ros_ws/src
 git clone https://github.com/Ryoya1012/ZX200_autonomy_state_machine.git
+git switch AGX
+cd ~/ros2_ws/
 colcon build --packages-select zx200_autonomy
 source install/setup.bash
 ros2 run zx200_autonomy state_machine_node
