@@ -14,6 +14,7 @@ cd ~/ros_ws/src
 git clone https://github.com/Ryoya1012/ZX200_autonomy_state_machine.git
 git branch
 git switch main
+cd ~/ros2_ws/
 colcon build --packages-select zx200_autonomy
 source install/setup.bash
 ros2 run zx200_autonomy state_machine_node
