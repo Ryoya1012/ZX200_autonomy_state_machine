@@ -13,7 +13,11 @@ from std_msgs.msg import Bool           # True/Falseのフラグ送受信用
 from enum import Enum                   # 状態を名前で管理するための機能
 import math                             # シグモイド関数の計算用
 
-# 状態(State)の定義
+# ======================================= #
+# [状態定義] State
+# zx200(ドラグショベル)が現在「どんなポーズ・作業をしているか」を名前で管理
+# ======================================= #
+
 class State(Enum):
     IDLE = 0                            # 待機状態(初期姿勢)
     REACH = 1                           # 掘削開始姿勢
@@ -27,33 +31,48 @@ class State(Enum):
     RETURN_2 = 9                        # 戻り2(旋回)
     FINISH = 10                         # 待機姿勢
 
+# ======================================== #
+# [メインクラス] zx200StateMachine
+# ドラグショベル(zx200)の腕の動きを順番通りに制御する「脳みそ」となるクラス
+# ======================================== #
+
 class ZX200StateMachine(Node):
     def __init__(self):
         # 掘削の回数をカウントする変数
         self.dig_count = 0
         # 掘削回数の上限
-        self.max_dig_count = 3
+        self.max_dig_count = 1
         # nodeの名前を'state_nachine_node'として登録し, シミュレーション時間を使用する設定
         super().__init__('state_machine_node', parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)])
         
         # ----通信の準備(送信と受信口)---
 
         # 送信：Unityへの目標角度(rad)指令
+        # トピック名(/zx200/front_cmd)にデータの型(JointCmd)を流す
         self.pub_cmd = self.create_publisher( JointCmd, '/zx200/front_cmd', 10)
 
         # 受信：現在の関節角度フィードバック 
+        # トピック名(/zx200/joint_states)にデータの型(JointCmd)が流れてきたら, 処理(self.joint_state_callback)を行う
         self.sub_state = self.create_subscription( JointState, '/zx200/joint_states', self.joint_state_callback, 10)
 
-        # [タスク管理用の通信] 外部(Task Manager等)から作業の開始/終了うぃ受け渡しする
+        # [タスク管理用の通信] 外部(Task Manager等)から作業の開始/終了を受け渡しする
+        # トピック名(/start_dig)にデータ型(Bool)のデータが流れてきたら, 処理(self.start_dig_callback)を行う
         self.sub_start_dig = self.create_subscription( Bool, '/start_dig', self.start_dig_callback, 10)
+        # トピック名(/start_release)にデータ型(Bool)のデータが流れてきたら処理(self.start_release_callback)を行う
         self.sub_start_release = self.create_subscription( Bool, '/start_release', self.start_release_callback, 10)
+        # トピック名(/end_dig)にデータ型(Bool)のデータを流す
         self.pub_end_dig = self.create_publisher( Bool, '/end_dig', 10)
+        # トピック名(/end_release)にデータ型(Bool)のデータを流す
         self.pub_end_release = self.create_publisher( Bool, '/end_release', 10)
      
-        # 変数の初期化
+
+        # ============================ 
+        # 2. 変数と目標角度の初期化
+        # ============================
+
         self.current_state = State.IDLE     # 起動時は[待機状態]からスタート
 
-        # 動かす関数の名前リスト(※ Unity側の名前と一致させる必要)
+        # 動かす関数の名前リスト(※ Unity側の名前と一致させる必要がある)
         self.joint_names = ['swing_joint','boom_joint','arm_joint','bucket_joint']
 
         # 現在の関節角度をメモしておくための辞書(最初はすべて0.0)
